@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Calendar {
+  id          String   @id @default(uuid())
+  name        String
+  type        String   // GOOGLE, ICAL
+  description String?
+  familyId    String
+  events      Event[]
+  settings    String?  // JSON serialized as string
+  credentials String?  // JSON serialized as string
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([familyId])
+}
+
+model Event {
+  id          String    @id @default(uuid())
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  location    String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  familyId    String
+  createdBy   String
+  userId      String    @default("")
+  calendarId  String
+  calendar    Calendar  @relation(fields: [calendarId], references: [id])
+
+  @@index([familyId])
+  @@index([userId])
+  @@index([calendarId])
+}
