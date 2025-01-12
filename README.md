@@ -1,85 +1,279 @@
-# FM-Calendar Plugin
+# FM-Calendar Module
 
-A calendar management plugin for FamilyManager that provides calendar and event management capabilities with Google Calendar and iCal support.
+## Overview
+FM-Calendar is a FamilyManager module that provides comprehensive calendar and event management capabilities. Built on the FamilyManager SDK, it offers seamless integration with Google Calendar and iCal, along with robust event management features for families.
 
 ## Features
 
-- Event management (create, read, update, delete)
-- Family-specific calendar views
-- Integration with tasks and shopping schedules
+### Backend Features
+- Event management (CRUD operations)
 - Google Calendar synchronization
-- iCal support
-- Real-time metrics and health monitoring
+- iCal support and export
+- Family calendar management
+- Recurring events
+- Event notifications
+- Real-time updates
+
+### Frontend Components
+- Calendar views (month, week, day)
+- Event creation/editing forms
+- Calendar settings panel
+- Event details modal
+- Calendar sharing interface
+- Notification preferences
+- Integration widgets
 
 ## Installation
 
 ```bash
-npm install fm-calendar
+npm install @familymanager/calendar --save
 ```
 
 ## Usage
 
+### Backend Integration
+
 ```typescript
-import { CalendarPlugin } from 'fm-calendar';
+import { CalendarModule } from '@familymanager/calendar';
+import { ModuleContext } from '@familymanager/sdk';
 
-// Create a new instance
-const calendar = new CalendarPlugin();
-
-// Initialize the plugin
-await calendar.init();
-
-// Start the plugin
-await calendar.start();
-
-// Get plugin routes
-const routes = calendar.getRoutes();
-
-// Check plugin health
-const health = await calendar.getHealth();
-
-// Stop the plugin when done
-await calendar.stop();
+export class Calendar extends CalendarModule {
+  async initialize(context: ModuleContext): Promise<void> {
+    // Initialize module
+    await this.setupDatabase();
+    await this.registerRoutes();
+    await this.setupGoogleCalendarSync();
+    this.setupEventHandlers();
+  }
+}
 ```
 
-## API Routes
+### Frontend Components
 
-- `GET /api/calendar/events` - List all events
-- `POST /api/calendar/events` - Create a new event
-- `GET /api/calendar/events/:id` - Get event by ID
-- `PUT /api/calendar/events/:id` - Update an event
-- `DELETE /api/calendar/events/:id` - Delete an event
-- `GET /api/calendar/events/family/:familyId` - List events by family
+```typescript
+import { 
+  CalendarView,
+  EventForm,
+  CalendarSettings 
+} from '@familymanager/calendar/components';
+
+function CalendarPage() {
+  return (
+    <div>
+      <CalendarView />
+      <EventForm />
+      <CalendarSettings />
+    </div>
+  );
+}
+```
+
+### Event Handling
+
+```typescript
+import { useEventListener } from '@familymanager/sdk';
+
+function CalendarComponent() {
+  useEventListener('calendar:event-created', (data) => {
+    // Handle new event
+  });
+}
+```
+
+## API Reference
+
+### REST Endpoints
+
+#### Events
+- `GET /api/calendar/events`: List all events
+- `POST /api/calendar/events`: Create new event
+- `GET /api/calendar/events/:id`: Get event details
+- `PUT /api/calendar/events/:id`: Update event
+- `DELETE /api/calendar/events/:id`: Delete event
+- `GET /api/calendar/events/family/:familyId`: List family events
+
+#### Calendar Settings
+- `GET /api/calendar/settings`: Get calendar settings
+- `PUT /api/calendar/settings`: Update settings
+- `POST /api/calendar/sync`: Trigger sync
+- `GET /api/calendar/export/:id`: Export calendar
+
+### Events
+
+#### Emitted Events
+- `calendar:event-created`
+- `calendar:event-updated`
+- `calendar:event-deleted`
+- `calendar:sync-completed`
+
+#### Handled Events
+- `family:member-added`
+- `family:member-removed`
+- `tasks:due-date-changed`
+
+## Database Schema
+
+```prisma
+model Calendar {
+  id          String   @id @default(uuid())
+  name        String
+  familyId    String
+  color       String?
+  isDefault   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  events      Event[]
+}
+
+model Event {
+  id          String   @id @default(uuid())
+  calendarId  String
+  title       String
+  description String?
+  startTime   DateTime
+  endTime     DateTime
+  location    String?
+  isRecurring Boolean  @default(false)
+  recurrence  Json?
+  calendar    Calendar @relation(fields: [calendarId], references: [id])
+}
+
+model CalendarSync {
+  id            String   @id @default(uuid())
+  calendarId    String
+  provider      String
+  lastSyncTime  DateTime
+  syncToken     String?
+  settings      Json
+}
+```
 
 ## Configuration
 
-The plugin accepts the following configuration options:
+```typescript
+interface CalendarConfig {
+  maxEventsPerCalendar: number;    // Default: 1000
+  defaultCalendarId?: string;      // Optional default calendar
+  syncInterval: number;            // Sync interval in seconds (default: 300)
+  notifyOnEventCreation: boolean;  // Default: true
+  notifyOnEventUpdate: boolean;    // Default: true
+  googleCalendar?: {
+    clientId: string;
+    clientSecret: string;
+    redirectUri: string;
+  };
+}
+```
+
+## Testing
+
+### Unit Tests
+```bash
+# Run unit tests
+npm run test:unit
+
+# Run with coverage
+npm run test:coverage
+```
+
+### Integration Tests
+```bash
+# Run integration tests
+npm run test:integration
+
+# Run E2E tests
+npm run test:e2e
+```
+
+### Test Utilities
 
 ```typescript
-{
-  maxEventsPerCalendar: number; // Maximum events per calendar (default: 1000)
-  defaultCalendarId?: string;   // Default calendar ID (optional)
-  syncInterval: number;         // Sync interval in seconds (default: 300)
-  notifyOnEventCreation: boolean; // Notify on event creation (default: true)
-  notifyOnEventUpdate: boolean;   // Notify on event update (default: true)
-}
+import { 
+  createTestCalendar,
+  createTestEvent,
+  mockCalendarModule 
+} from '@familymanager/calendar/testing';
+
+describe('Calendar Tests', () => {
+  const mockModule = mockCalendarModule();
+  
+  it('handles events', async () => {
+    const calendar = await createTestCalendar();
+    const event = await createTestEvent(calendar.id);
+    // Test implementation
+  });
+});
 ```
 
 ## Development
 
+### Prerequisites
+- Node.js 18+
+- FamilyManager SDK
+- PostgreSQL
+- Google Calendar API credentials (optional)
+
+### Setup
 ```bash
 # Install dependencies
 npm install
 
-# Generate Prisma client
-npm run prisma:generate
+# Set up database
+npm run db:setup
 
-# Build the plugin
+# Run migrations
+npm run db:migrate
+
+# Start development server
+npm run dev
+```
+
+### Building
+```bash
+# Build module
 npm run build
 
-# Run tests
-npm test
+# Generate documentation
+npm run docs
 ```
+
+## Contributing
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+Please ensure your contributions:
+- Follow the existing code style
+- Include appropriate tests
+- Update relevant documentation
+- Consider backward compatibility
 
 ## License
 
-MIT
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## Dependencies
+
+### Required
+- @familymanager/sdk: Core SDK
+- @prisma/client: Database ORM
+- react: Frontend framework
+- redux: State management
+- googleapis: Google Calendar API
+- ical.js: iCal support
+
+### Development
+- typescript: Type checking
+- jest: Testing framework
+- playwright: E2E testing
+- eslint: Code linting
+- prettier: Code formatting
+
+## Support
+
+- [Issue Tracker](https://github.com/familymanager/calendar/issues)
+- [Documentation](./docs)
+- [Discussions](https://github.com/familymanager/calendar/discussions)
